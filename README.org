@@ -1,0 +1,132 @@
+#+TITLE: Chip and Eat It! A CHIP-8 Emulator
+
+* Introduction
+/Chip and Eat It/ is a CHIP 8 emulator made in Rust as an exercise in learning more about the Rust language. The name of this project comes from [[][this infamous scene]] from the anime /Death Note/.
+
+* Dependancies
+/this project will have dependencies in the future, but they have not been finalized/
+
+* Goals
+- Emulate the CHIP 8 system.
+- Further my knowledge of Rust
+- Reinforce good software design practice
+
+* Structure [Tentative]
+** CPU
+*** opcode decideder
+*** Registers
+**** Data
+16 1 byte data registers (0-F)
+F is a flag and should be avoided
+***** 0xF Uses
+- Carry from addition operations
+- no borrow in subtraction
+- set to non-zero(?) for collision?
+**** Address
+1 2-byte address register, used for opcodes that invlove memory
+
+** Stack
+Stores return addresses for subroutines
+
+** Timers
+Count down at 60Hz until they reach 0
+/Tied to framerate?/
+*** Sound
+beeps when non-zero
+*** Delay
+can be set and read
+
+** Memory
+*** Description
+Emulates the memory of the CHIP-8. 4KB, 1-byte per location.
+*** Methods
+| Name  | Call             | Desc                                            |
+|-------+------------------+-------------------------------------------------|
+| new   | new()            | Initialize a new memorybank. Used at start      |
+| write | write(val, addr) | Write a value to address                        |
+| read  | read(addr)       | read a value from an address, returns the value |
+
+*** Sprites
+Sprites are 8px width by 1-16px high.
+
+**** Example Sprite
+| 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |   |
+|---+---+---+---+---+---+---+---+---|
+|   |   |   |   |   |   |   |   | 0 |
+|   |   | X | X | X | X |   |   | 1 |
+|   | X |   |   |   |   | X |   | 2 |
+|   | X | X |   |   | X | X |   | 3 |
+|   | X |   |   |   |   | X |   | 4 |
+|   | X |   | X | X |   | X |   | 5 |
+|   |   | X | X | X | X |   |   | 6 |
+|   |   |   |   |   |   |   |   | 7 |
+
+** Screen
+- *Resolution*: 64 x 32 px
+- *Sprites*: 8w by 1-16h px
+  + Sprites are XOR'd with the bg layer
+    - Set VF to 1 if anything is flipped
+
+** Load ("cartridges")
+** Input Handling
+Hex keyboard, 16 keys, 0-F
+Keys 8, 4, 6, and 2 are used for directional input
+*** Input Opcodes
+1) skip next if pressed
+2) skip next if *not* pressed
+3) wait for press, then store in register
+   - Might be blocking?
+* Op Codes
+** Explanation:
+| Symbol | Meaning                         |
+|--------+---------------------------------|
+| N      | 4-bit constant                  |
+| X, y   | Register identifier             |
+| PC     | Program Counter                 |
+| I      | 2-byte register, memory address |
+| VN     | Register, where {N=> 0..F}      |
+|        |                                 |
+
+** Code Table:
+| op   | Type  | code               | note                                                     |
+|------+-------+--------------------+----------------------------------------------------------|
+| 0NNN | call  | NA                 | Calls machine code at addr0xNNN                          |
+| 00E0 | disp  | NA                 | clear screen                                             |
+| 00EE | flow  | return;            | end sub-routine                                          |
+| 1NNN | flow  | goto NNN;          | jump to address                                          |
+| 2NNN | flow  | *(0xNNN)()         | Call function at NNN                                     |
+| 3XNN | cond  | if Vx == NN        | skip if eq                                               |
+| 4XNN | cond  | if Vx !== NN       | skip if *not* eq                                         |
+| 5XY0 | cond  | if Vx == Vy        | skip if x == y                                           |
+| 6XNN | assg  | Vx = NN            | set Vx to a constant NN                                  |
+| 7XNN | assg  | Vx += NN           | increment Vx by NN; *don't set carry*                    |
+| 8XY0 | assg  | Vx = Vy            | set Vx to Vy                                             |
+| 8XY1 | bito  | Vx = Vx bitor Vy   | set Vx to the bitwise or  of it and Vy                   |
+| 8XY2 | bito  | Vx = Vx&Vy         | set Vx to the bitwise and of it and Vy                   |
+| 8XY3 | bito  | Vx = Vx^Vy         | set Vx to the bitwise xor of it and Vy                   |
+| 8XY4 | assg  | Vx += Vy           | increment Vx by Vy, set carry flag if carry              |
+| 8XY5 | assg  | Vx -= Vy           | decrement Vx by Vy, set VF to 0 when borrow, 1 otherwise |
+| 8XY6 | bito  | Vx >>= 1           | put LSB of Vx in VF, right shift Vx by 1                 |
+| 8XY7 | assg  | Vx = Vy - Vx       | set Vx to Vy - Vx, use same borrow rules as 8XY5         |
+| 8XYE | bito  | Vx <<= 1           | store MSB of Vx in VF, then right shift by 1             |
+| 9XY0 | cond  | if Vx != Vy        | Skip if x != y                                           |
+| ANNN | mem   | I = NNN            | set I to a constant                                      |
+| BNNN | flow  | PC = V0 + NNN      | jump to addr V0 + NNN                                    |
+| CXNN | rand  | Vx=rand()&NN       | bitwise AND Vx with a random unsigned 8-bit int          |
+| DXYN | disp  |                    | draw a sprite at (Vx, Vy) with height N. Set flag        |
+| Ex9E | key   | if pressed = Vx    | skip if keycode equals Vx                                |
+| ExA1 | key   | if !pressed = Vx   | skip if keycode *does not* equal Vx                      |
+| FX07 | timer | Vx = get_delay()   | Set Vx to the value of the delay timer                   |
+| Fx0A | key   | Vx = get_key()     | Set Vx to the value of the currently pressed key         |
+| FX15 | timer | delay(Vx)          | Set the delay timer to Vx                                |
+| FX18 | sound | sound(Vx)          | Set the sound timer to Vx                                |
+| FX1E | mem   | I += Vx            | Increment I by Vx, no carry                              |
+| FX29 | mem   | I = char_addr[Vx]  | Set I to the memory location of the character in Vx      |
+| FX33 |       |                    | Store the BCD representation of Vx in memory at I        |
+| FX55 | mem   | dump V0..VX to I   | Clear V0 through VX, store in address at I               |
+| FX65 | mem   | load V0..VX from I | read memory from I into V0..VX                           |
+*Not entirely sure if V0-VF should be cleared in 0xFX55*
+* References
+- [[][Wikipedia]]
+- [[][CHIP 8 in C++]]
+- [[][Documentation For Graphics Library]]
