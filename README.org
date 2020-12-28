@@ -1,7 +1,7 @@
 #+TITLE: Chip and Eat It! A CHIP-8 Emulator
 
 * Introduction
-/Chip and Eat It/ is a CHIP 8 emulator made in Rust as an exercise in learning more about the Rust language. The name of this project comes from [[][this infamous scene]] from the anime /Death Note/.
+/Chip and Eat It/ is a CHIP 8 emulator made in Rust as an exercise in learning more about the Rust language. The name of this project comes from [[https://youtu.be/BgtkXkSlCiw][this infamous scene]] from the anime /Death Note/.
 
 * Dependancies
 /this project will have dependencies in the future, but they have not been finalized/
@@ -127,6 +127,4 @@ Keys 8, 4, 6, and 2 are used for directional input
 | FX65 | mem   | load V0..VX from I | read memory from I into V0..VX                           |
 *Not entirely sure if V0-VF should be cleared in 0xFX55*
 * References
-- [[][Wikipedia]]
-- [[][CHIP 8 in C++]]
-- [[][Documentation For Graphics Library]]
+- [[https://en.wikipedia.org/wiki/CHIP-8][Wikipedia]]
